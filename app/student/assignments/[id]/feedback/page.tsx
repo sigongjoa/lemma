@@ -200,12 +200,12 @@ export default function FeedbackPage() {
             {!r.is_correct && r.similar_problem && (
               <div
                 className="mt-2 p-4 rounded-2xl"
-                style={{ background: 'oklch(97% 0.012 255)', border: '1px solid oklch(85% 0.05 255)' }}
+                style={{ background: 'oklch(97% 0.012 75)', border: '1px solid oklch(88% 0.06 75)' }}
               >
                 <div className="flex items-center gap-2 mb-3">
                   <span
                     className="text-xs font-bold px-2 py-0.5 rounded-full"
-                    style={{ background: 'oklch(92% 0.06 255)', color: 'oklch(38% 0.14 255)' }}
+                    style={{ background: 'oklch(93% 0.08 75)', color: 'var(--lemma-gold-d)' }}
                   >
                     ✦ AI 유사문제
                   </span>
@@ -215,7 +215,7 @@ export default function FeedbackPage() {
                 </p>
                 <button
                   className="w-full py-2.5 rounded-xl text-sm font-semibold"
-                  style={{ background: 'oklch(52% 0.18 255)', color: 'white' }}
+                  style={{ background: 'var(--lemma-ink)', color: 'var(--lemma-cream)' }}
                   onClick={() => alert('준비 중인 기능이에요')}
                 >
                   풀이 제출하기

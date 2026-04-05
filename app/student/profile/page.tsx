@@ -35,7 +35,7 @@ export default async function ProfilePage() {
               )}
               <span
                 className="inline-block mt-1 text-xs font-semibold px-2 py-0.5 rounded-full"
-                style={{ background: 'oklch(93% 0.06 255)', color: 'oklch(38% 0.14 255)' }}
+                style={{ background: 'oklch(93% 0.06 75)', color: 'var(--lemma-gold-d)' }}
               >
                 {role === 'student' ? '학생' : role}
               </span>

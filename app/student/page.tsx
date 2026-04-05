@@ -64,9 +64,9 @@ function getStatusInfo(assignment: Assignment & { my_submission: Submission | nu
   if (sub.status === 'done') {
     return {
       label: '피드백 도착',
-      color: 'oklch(38% 0.14 255)',
-      bg: 'oklch(92% 0.05 255)',
-      border: 'oklch(75% 0.12 255)',
+      color: 'var(--lemma-gold-d)',
+      bg: 'oklch(95% 0.03 75)',
+      border: 'var(--lemma-gold)',
       action: '결과 보기',
       actionHref: `/student/assignments/${assignment.id}/feedback?submissionId=${sub.id}`,
       done: false,
@@ -114,7 +114,7 @@ export default async function StudentHomePage() {
         <div className="grid grid-cols-3 gap-3">
           {[
             { num: pendingCount,  label: '미제출',     color: 'var(--lemma-red)' },
-            { num: feedbackCount, label: '피드백 도착', color: 'oklch(45% 0.14 255)' },
+            { num: feedbackCount, label: '피드백 도착', color: 'var(--lemma-gold-d)' },
             { num: doneCount,     label: '완료',        color: 'var(--lemma-green)' },
           ].map(({ num, label, color }) => (
             <div

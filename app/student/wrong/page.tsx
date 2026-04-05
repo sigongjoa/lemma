@@ -105,8 +105,8 @@ export default async function WrongNotesPage() {
 
                     {/* Similar problem */}
                     {r.similar_problem && (
-                      <div className="mt-2 p-3 rounded-xl" style={{ background: 'oklch(97% 0.012 255)', border: '1px solid oklch(88% 0.05 255)' }}>
-                        <p className="text-xs font-bold mb-1" style={{ color: 'oklch(38% 0.14 255)' }}>✦ 유사 연습문제</p>
+                      <div className="mt-2 p-3 rounded-xl" style={{ background: 'oklch(97% 0.012 75)', border: '1px solid oklch(88% 0.06 75)' }}>
+                        <p className="text-xs font-bold mb-1" style={{ color: 'var(--lemma-gold-d)' }}>✦ 유사 연습문제</p>
                         <p className="text-xs" style={{ color: 'var(--lemma-ink)' }}>
                           {r.similar_problem.body}
                         </p>

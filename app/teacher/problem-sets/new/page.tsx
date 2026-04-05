@@ -60,7 +60,7 @@ export default function NewProblemSetPage() {
               <button key={p.id} onClick={() => toggle(p.id)}
                 className="w-full text-left px-4 py-3 rounded-xl border flex items-center justify-between transition-all"
                 style={{
-                  background: selected.includes(p.id) ? 'oklch(96% 0.015 265)' : 'white',
+                  background: selected.includes(p.id) ? 'oklch(96% 0.018 75)' : 'white',
                   borderColor: selected.includes(p.id) ? 'var(--lemma-ink)' : 'var(--lemma-cream-2)',
                 }}>
                 <div>
