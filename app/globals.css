@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
@@ -49,7 +50,18 @@
 }
 
 :root {
-  --background: oklch(1 0 0);
+  /* Lemma brand tokens */
+  --lemma-ink:    oklch(18% 0.03 265);
+  --lemma-ink-2:  oklch(38% 0.03 265);
+  --lemma-ink-3:  oklch(58% 0.02 265);
+  --lemma-cream:  oklch(97% 0.008 90);
+  --lemma-cream-2:oklch(93% 0.012 90);
+  --lemma-gold:   oklch(72% 0.14 75);
+  --lemma-gold-d: oklch(58% 0.14 75);
+  --lemma-green:  oklch(60% 0.14 155);
+  --lemma-red:    oklch(55% 0.18 25);
+
+  --background: oklch(97% 0.008 90);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.145 0 0);
@@ -123,8 +135,24 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    -webkit-font-smoothing: antialiased;
   }
-  html {
-    @apply font-sans;
-  }
+}
+
+/* Math grid background */
+.grid-bg {
+  background-color: var(--lemma-cream);
+  background-image:
+    linear-gradient(oklch(85% 0.01 90 / 0.4) 1px, transparent 1px),
+    linear-gradient(90deg, oklch(85% 0.01 90 / 0.4) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+.font-brand {
+  font-family: 'Instrument Serif', serif;
+}
+.font-brand-italic {
+  font-family: 'Instrument Serif', serif;
+  font-style: italic;
 }

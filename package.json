@@ -5,18 +5,25 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "build:cf": "npx @cloudflare/next-on-pages",
     "start": "next start",
-    "lint": "eslint"
+    "preview": "npx wrangler pages dev",
+    "deploy": "npm run build:cf && npx wrangler pages deploy",
+    "lint": "eslint",
+    "test": "jest",
+    "test:coverage": "jest --coverage"
   },
   "dependencies": {
     "@base-ui/react": "^1.3.0",
+    "@cloudflare/next-on-pages": "^1.13.16",
+    "@google/generative-ai": "^0.24.1",
     "@supabase/supabase-js": "^2.101.1",
     "@types/bcryptjs": "^2.4.6",
     "bcryptjs": "^3.0.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^1.7.0",
-    "next": "16.2.2",
+    "next": "^15.4.11",
     "next-auth": "^5.0.0-beta.30",
     "react": "19.2.4",
     "react-dom": "19.2.4",
@@ -25,13 +32,19 @@
     "tw-animate-css": "^1.4.0"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^4.20260405.1",
+    "@playwright/test": "^1.59.1",
     "@tailwindcss/postcss": "^4",
+    "@types/jest": "^30.0.0",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.2",
+    "jest": "^30.3.0",
+    "jest-environment-node": "^30.3.0",
     "tailwindcss": "^4",
+    "ts-jest": "^29.4.9",
     "typescript": "^5"
   }
 }
