@@ -90,6 +90,48 @@ export async function generateSimilarProblem(
   return JSON.parse(jsonMatch[0]) as SimilarProblemResult
 }
 
+// ─── Extract all student answers from a photo (single Vision call) ────────
+
+export interface ExtractedAnswer {
+  problemId: string
+  studentAnswer: string
+  confidence: number
+}
+
+export async function extractAllAnswers(
+  imageBase64: string,
+  imageMimeType: string,
+  problems: { id: string; body: string; answer: string }[]
+): Promise<ExtractedAnswer[]> {
+  const problemList = problems
+    .map((p, i) => `문제 ${i + 1} (ID: ${p.id}): ${p.body}`)
+    .join('\n')
+
+  const prompt = `
+당신은 수학 채점 AI입니다. 학생의 풀이 사진에서 각 문제의 최종 답을 읽어주세요.
+
+${problemList}
+
+각 문제에 대해 학생이 쓴 최종 답을 찾아주세요. 답을 못 찾으면 "미기재"로 표시하세요.
+
+다음 JSON 배열 형식으로만 응답해주세요 (다른 텍스트 없이):
+[
+  { "problemId": "문제ID", "studentAnswer": "학생이 쓴 답", "confidence": 0.9 }
+]
+`.trim()
+
+  const result = await visionModel.generateContent([
+    prompt,
+    { inlineData: { data: imageBase64, mimeType: imageMimeType } },
+  ])
+
+  const text = result.response.text().trim()
+  const jsonMatch = text.match(/\[[\s\S]*\]/)
+  if (!jsonMatch) throw new Error('Gemini returned non-JSON response for answer extraction')
+
+  return JSON.parse(jsonMatch[0]) as ExtractedAnswer[]
+}
+
 // ─── Separate problems in a photo ─────────────────────────────────────────
 
 export async function separateProblemsFromPhoto(

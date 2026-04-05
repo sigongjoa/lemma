@@ -2,7 +2,7 @@ export const runtime = 'edge'
 
 import { NextRequest, NextResponse } from 'next/server'
 import { queryOne, query, execute, getR2 } from '@/lib/db'
-import { gradeProblem, generateSimilarProblem } from '@/lib/gemini'
+import { extractAllAnswers, generateSimilarProblem } from '@/lib/gemini'
 import { verifyWithZ3 } from '@/lib/z3-client'
 
 // Internal route — protected by shared secret
@@ -15,7 +15,6 @@ export async function POST(req: NextRequest) {
   const { submissionId } = await req.json() as { submissionId?: string }
   if (!submissionId) return NextResponse.json({ error: 'Missing submissionId' }, { status: 400 })
 
-  // Mark as processing
   await execute("UPDATE submissions SET status = 'processing' WHERE id = ?", [submissionId])
 
   try {
@@ -29,18 +28,16 @@ export async function POST(req: NextRequest) {
       'SELECT problem_set_id FROM assignments WHERE id = ?',
       [submission.assignment_id]
     )
-
-    const problemSetId = assignment?.problem_set_id
-    if (!problemSetId) throw new Error('Assignment not found')
+    if (!assignment?.problem_set_id) throw new Error('Assignment not found')
 
     const problemSet = await queryOne<{ problem_ids: string }>(
       'SELECT problem_ids FROM problem_sets WHERE id = ?',
-      [problemSetId]
+      [assignment.problem_set_id]
     )
     if (!problemSet) throw new Error('Problem set not found')
 
     const problemIds: string[] = JSON.parse(problemSet.problem_ids ?? '[]')
-    if (problemIds.length === 0) throw new Error('No problems found')
+    if (problemIds.length === 0) throw new Error('No problems in set')
 
     const placeholders = problemIds.map(() => '?').join(', ')
     const problems = await query<{
@@ -51,13 +48,12 @@ export async function POST(req: NextRequest) {
       concept_tags: string
       z3_formula: string | null
     }>(
-      `SELECT * FROM problems WHERE id IN (${placeholders})`,
+      `SELECT id, body, answer, solution, concept_tags, z3_formula FROM problems WHERE id IN (${placeholders})`,
       problemIds
     )
+    if (problems.length === 0) throw new Error('Problems not found in DB')
 
-    if (problems.length === 0) throw new Error('No problems found')
-
-    // Fetch the first photo from R2 and convert to base64
+    // ── Step 1: Fetch photo ────────────────────────────────────────────────
     const photoKeys: string[] = JSON.parse(submission.photo_urls ?? '[]')
     const r2 = getR2()
     const photoObject = await r2.get(photoKeys[0])
@@ -67,80 +63,91 @@ export async function POST(req: NextRequest) {
     const imageBase64 = Buffer.from(imageBuffer).toString('base64')
     const imageMimeType = photoObject.httpMetadata?.contentType ?? 'image/jpeg'
 
-    // Grade each problem in parallel
-    const gradingPromises = problems.map(async (problem) => {
-      try {
-        const conceptTags: string[] = JSON.parse(problem.concept_tags ?? '[]')
-        const result = await gradeProblem(
-          imageBase64,
-          imageMimeType,
-          problem.body,
-          problem.answer,
-          problem.solution
-        )
-        return { problem: { ...problem, concept_tags: conceptTags }, result, error: null }
-      } catch (err) {
-        return { problem, result: null, error: err }
-      }
-    })
+    // ── Step 2: Single Vision call — extract all answers ──────────────────
+    const extracted = await extractAllAnswers(imageBase64, imageMimeType, problems)
 
-    const gradingResults = await Promise.all(gradingPromises)
+    // Build a map of problemId → extracted answer
+    const answerMap = new Map(extracted.map((e) => [e.problemId, e]))
 
-    let totalCorrect = 0
+    // ── Step 3: Grade each problem (compare answers + optional Z3) ────────
+    type GradedProblem = {
+      problem: typeof problems[number]
+      conceptTags: string[]
+      isCorrect: boolean
+      studentAnswer: string
+      feedback: string
+      z3Verified: boolean | null
+    }
 
-    for (const { problem, result, error } of gradingResults) {
-      if (error || !result) {
-        const resultId = crypto.randomUUID()
-        await execute(
-          'INSERT INTO submission_results (id, submission_id, problem_id, is_correct, student_answer, ai_feedback, z3_verified, similar_problem_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-          [resultId, submissionId, problem.id, 0, null, '채점 중 오류가 발생했습니다', null, null]
-        )
-        continue
-      }
+    const graded: GradedProblem[] = []
+
+    for (const problem of problems) {
+      const extracted = answerMap.get(problem.id)
+      const studentAnswer = extracted?.studentAnswer ?? '미기재'
+      const conceptTags: string[] = JSON.parse(problem.concept_tags ?? '[]')
+
+      // Simple string-based comparison (case-insensitive, trimmed)
+      const normalise = (s: string) => s.trim().toLowerCase().replace(/\s+/g, '')
+      let isCorrect = normalise(studentAnswer) === normalise(problem.answer)
+      let feedback = isCorrect ? '' : `정답: ${problem.answer}`
+      let z3Verified: boolean | null = null
 
       // Z3 verification for problems with a formula
-      let z3Verified: boolean | null = null
-      if (problem.z3_formula && result.studentAnswer) {
-        const z3Result = await verifyWithZ3({
-          formula: problem.z3_formula,
-          studentAnswer: result.studentAnswer,
-        })
-        z3Verified = z3Result.valid
-        if (result.isCorrect && !z3Result.valid) {
-          result.isCorrect = false
-          result.feedback = `수식 검증 실패: ${z3Result.reason}`
+      if (problem.z3_formula && studentAnswer !== '미기재') {
+        try {
+          const z3Result = await verifyWithZ3({ formula: problem.z3_formula, studentAnswer })
+          z3Verified = z3Result.valid
+          if (isCorrect && !z3Result.valid) {
+            isCorrect = false
+            feedback = `수식 검증 실패: ${z3Result.reason}`
+          }
+        } catch {
+          // Z3 unavailable — keep string comparison result
         }
       }
 
-      if (result.isCorrect) totalCorrect++
+      graded.push({ problem, conceptTags, isCorrect, studentAnswer, feedback, z3Verified })
+    }
 
-      let similarProblemId: string | null = null
+    // ── Step 4: Generate similar problems for wrong answers in parallel ────
+    const wrongItems = graded.filter((g) => !g.isCorrect)
 
-      if (!result.isCorrect) {
+    const similarResults = await Promise.all(
+      wrongItems.map(async (g) => {
         try {
-          const conceptTags = Array.isArray(problem.concept_tags)
-            ? problem.concept_tags
-            : JSON.parse((problem.concept_tags as unknown as string) ?? '[]')
-          const similar = await generateSimilarProblem(
-            problem.body,
-            conceptTags,
-            result.feedback
-          )
+          const similar = await generateSimilarProblem(g.problem.body, g.conceptTags, g.feedback)
           const similarId = crypto.randomUUID()
           await execute(
             'INSERT INTO similar_problems (id, original_problem_id, body, answer, concept_tags) VALUES (?, ?, ?, ?, ?)',
-            [similarId, problem.id, similar.body, similar.answer, JSON.stringify(similar.conceptTags)]
+            [similarId, g.problem.id, similar.body, similar.answer, JSON.stringify(similar.conceptTags)]
           )
-          similarProblemId = similarId
+          return { problemId: g.problem.id, similarProblemId: similarId }
         } catch {
-          // Similar problem generation failed — not critical
+          return { problemId: g.problem.id, similarProblemId: null }
         }
-      }
+      })
+    )
 
+    const similarMap = new Map(similarResults.map((s) => [s.problemId, s.similarProblemId]))
+
+    // ── Step 5: Persist results ────────────────────────────────────────────
+    let totalCorrect = 0
+
+    for (const g of graded) {
+      if (g.isCorrect) totalCorrect++
       const resultId = crypto.randomUUID()
       await execute(
         'INSERT INTO submission_results (id, submission_id, problem_id, is_correct, student_answer, ai_feedback, z3_verified, similar_problem_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-        [resultId, submissionId, problem.id, result.isCorrect ? 1 : 0, result.studentAnswer ?? null, result.feedback, z3Verified, similarProblemId]
+        [
+          resultId,
+          submissionId,
+          g.problem.id,
+          g.isCorrect ? 1 : 0,
+          g.studentAnswer,
+          g.feedback || null,
+          g.z3Verified,
+          similarMap.get(g.problem.id) ?? null,
+        ]
       )
     }
 
