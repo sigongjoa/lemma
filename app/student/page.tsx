@@ -57,7 +57,7 @@ function getStatusInfo(assignment: Assignment & { my_submission: Submission | nu
       bg: 'oklch(93% 0.04 75)',
       border: 'var(--lemma-gold)',
       action: '결과 확인',
-      actionHref: `/student/assignments/${assignment.id}/feedback`,
+      actionHref: `/student/assignments/${assignment.id}/feedback?submissionId=${sub.id}`,
       done: false,
     }
   }
@@ -68,8 +68,8 @@ function getStatusInfo(assignment: Assignment & { my_submission: Submission | nu
       bg: 'oklch(92% 0.05 255)',
       border: 'oklch(75% 0.12 255)',
       action: '결과 보기',
-      actionHref: `/student/assignments/${assignment.id}/feedback`,
-      done: true,
+      actionHref: `/student/assignments/${assignment.id}/feedback?submissionId=${sub.id}`,
+      done: false,
     }
   }
   return {
