@@ -61,8 +61,8 @@ export async function POST(req: NextRequest) {
 
   const id = crypto.randomUUID()
   await execute(
-    'INSERT INTO assignments (id, problem_set_id, student_ids, due_date, title, submission_ids, created_by) VALUES (?, ?, ?, ?, ?, ?, ?)',
-    [id, problemSetId, JSON.stringify(studentIds), dueDate, title, JSON.stringify([]), session.user.id]
+    'INSERT INTO assignments (id, problem_set_id, student_ids, due_date, title, created_by) VALUES (?, ?, ?, ?, ?, ?)',
+    [id, problemSetId, JSON.stringify(studentIds), dueDate, title, session.user.id]
   )
 
   const assignment = await queryOne<{ id: string; student_ids: string; [key: string]: unknown }>(
