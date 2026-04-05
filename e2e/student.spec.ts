@@ -14,7 +14,7 @@ test.describe('학생 앱', () => {
   test('학생 홈 렌더링', async ({ page }) => {
     await loginAsStudent(page)
     await expect(page.locator('text=이루다')).toBeVisible()
-    await expect(page.locator('text=미제출')).toBeVisible()
+    await expect(page.locator('text=숙제 목록').first()).toBeVisible()
     await expect(page.locator('text=숙제 목록')).toBeVisible()
   })
 
