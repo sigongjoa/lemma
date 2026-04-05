@@ -31,6 +31,16 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# coverage
+/coverage/
+
 # playwright
 /test-results/
 /playwright-report/
+
+# temp e2e files
+e2e/snap.spec.ts
+e2e/screenshot.spec.ts
+e2e/redirect.spec.ts
+e2e/pc_login.spec.ts
+e2e/mobile_fresh.spec.ts
