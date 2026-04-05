@@ -160,6 +160,6 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     await execute("UPDATE submissions SET status = 'error' WHERE id = ?", [submissionId])
     console.error('[grade]', err)
-    return NextResponse.json({ error: String(err) }, { status: 500 })
+    return NextResponse.json({ error: '채점 중 오류가 발생했습니다' }, { status: 500 })
   }
 }

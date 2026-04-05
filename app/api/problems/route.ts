@@ -3,6 +3,7 @@ export const runtime = 'edge'
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/auth'
 import { query, queryOne, execute } from '@/lib/db'
+import { parseJsonArray } from '@/lib/utils'
 
 export async function GET() {
   const session = await auth()
@@ -16,7 +17,7 @@ export async function GET() {
 
   const problems = rows.map(p => ({
     ...p,
-    concept_tags: JSON.parse(p.concept_tags ?? '[]'),
+    concept_tags: parseJsonArray(p.concept_tags),
   }))
 
   return NextResponse.json(problems)

@@ -29,10 +29,10 @@ export async function GET(
         'SELECT student_id FROM submissions WHERE id = ?',
         [submissionId]
       )
-      if (!sub || sub.student_id !== session.user.id) {
-        if (session.user.role !== 'admin') {
-          return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-        }
+      const isOwner = sub?.student_id === session.user.id
+      const isAdmin = session.user.role === 'admin'
+      if (!isOwner && !isAdmin) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
       }
     }
   }

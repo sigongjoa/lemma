@@ -8,7 +8,6 @@ export default async function ProfilePage() {
   if (!session) redirect('/login')
 
   const { name, email, role } = session.user
-  const joined = (session.user as { createdAt?: string }).createdAt
 
   return (
     <div className="flex flex-col min-h-screen" style={{ background: 'var(--lemma-cream)' }}>
@@ -42,18 +41,6 @@ export default async function ProfilePage() {
             </div>
           </div>
 
-          {joined && (
-            <div className="pt-3 border-t" style={{ borderColor: 'var(--lemma-cream-2)' }}>
-              <p className="text-xs" style={{ color: 'var(--lemma-ink-3)' }}>
-                가입일:{' '}
-                {new Date(joined).toLocaleDateString('ko-KR', {
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric',
-                })}
-              </p>
-            </div>
-          )}
         </div>
 
         {/* Logout */}

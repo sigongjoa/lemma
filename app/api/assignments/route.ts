@@ -3,6 +3,7 @@ export const runtime = 'edge'
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/auth'
 import { query, queryOne, execute } from '@/lib/db'
+import { parseJsonArray } from '@/lib/utils'
 
 export async function GET(req: NextRequest) {
   const session = await auth()
@@ -17,8 +18,8 @@ export async function GET(req: NextRequest) {
     )
     const assignments = rows.map(a => ({
       ...a,
-      student_ids: JSON.parse(a.student_ids ?? '[]'),
-      problem_ids: JSON.parse((a.problem_ids as string) ?? '[]'),
+      student_ids: parseJsonArray(a.student_ids),
+      problem_ids: parseJsonArray(a.problem_ids as string),
     }))
     return NextResponse.json(assignments)
   }
@@ -39,7 +40,7 @@ export async function GET(req: NextRequest) {
 
   const assignments = rows.map(a => ({
     ...a,
-    student_ids: JSON.parse(a.student_ids ?? '[]'),
+    student_ids: parseJsonArray(a.student_ids),
     problem_set: a.problem_set_name ? { name: a.problem_set_name } : null,
   }))
 

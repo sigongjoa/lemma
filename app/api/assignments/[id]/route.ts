@@ -3,6 +3,7 @@ export const runtime = 'edge'
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/auth'
 import { query, queryOne } from '@/lib/db'
+import { parseJsonArray } from '@/lib/utils'
 
 export async function GET(
   req: NextRequest,
@@ -19,7 +20,7 @@ export async function GET(
   )
   if (!assignment) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-  const studentIds: string[] = JSON.parse(assignment.student_ids ?? '[]')
+  const studentIds: string[] = parseJsonArray(assignment.student_ids)
 
   // Enrollment check for students
   if (session.user.role === 'student' && !studentIds.includes(session.user.id)) {
@@ -32,25 +33,21 @@ export async function GET(
     [assignment.problem_set_id]
   )
 
-  // Fetch problems
+  // Fetch problems — students don't receive answers/solutions at query level
   let problems: unknown[] = []
   if (problemSet) {
-    const problemIds: string[] = JSON.parse(problemSet.problem_ids ?? '[]')
+    const problemIds = parseJsonArray(problemSet.problem_ids)
     if (problemIds.length > 0) {
       const placeholders = problemIds.map(() => '?').join(', ')
+      const isStudent = session.user.role === 'student'
+      const cols = isStudent
+        ? 'id, title, body, image_url, concept_tags, created_at'
+        : 'id, title, body, image_url, answer, solution, concept_tags, z3_formula, created_at'
       const rows = await query<{ id: string; concept_tags: string; [key: string]: unknown }>(
-        `SELECT * FROM problems WHERE id IN (${placeholders})`,
+        `SELECT ${cols} FROM problems WHERE id IN (${placeholders})`,
         problemIds
       )
-      problems = rows.map(p => {
-        const mapped: Record<string, unknown> = { ...p, concept_tags: JSON.parse(p.concept_tags ?? '[]') }
-        if (session.user.role === 'student') {
-          delete mapped.answer
-          delete mapped.solution
-          delete mapped.z3_formula
-        }
-        return mapped
-      })
+      problems = rows.map(p => ({ ...p, concept_tags: parseJsonArray(p.concept_tags as string) }))
     }
   }
 
@@ -62,7 +59,7 @@ export async function GET(
       [id, session.user.id]
     )
     if (sub) {
-      mySubmission = { ...sub, photo_urls: JSON.parse(sub.photo_urls ?? '[]') }
+      mySubmission = { ...sub, photo_urls: parseJsonArray(sub.photo_urls) }
     }
   }
 
@@ -70,7 +67,7 @@ export async function GET(
     ...assignment,
     student_ids: studentIds,
     problem_set: problemSet
-      ? { ...problemSet, problem_ids: JSON.parse(problemSet.problem_ids ?? '[]') }
+      ? { ...problemSet, problem_ids: parseJsonArray(problemSet.problem_ids) }
       : null,
     problems,
     my_submission: mySubmission,

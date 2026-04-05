@@ -4,6 +4,7 @@ import { auth } from '@/auth'
 import { query } from '@/lib/db'
 import { Assignment, Submission } from '@/types'
 import Link from 'next/link'
+import { parseJsonArray } from '@/lib/utils'
 
 interface AssignmentRow extends Assignment {
   ps_problem_ids: string | null
@@ -27,8 +28,8 @@ async function getStudentAssignments(studentId: string) {
 
   return assignments.map((a) => ({
     ...a,
-    student_ids: JSON.parse((a as unknown as { student_ids: string }).student_ids ?? '[]') as string[],
-    problem_count: JSON.parse(a.ps_problem_ids ?? '[]').length as number,
+    student_ids: parseJsonArray((a as unknown as { student_ids: string }).student_ids),
+    problem_count: parseJsonArray(a.ps_problem_ids).length,
     my_submission: submissions.find((s) => s.assignment_id === a.id) ?? null,
   }))
 }

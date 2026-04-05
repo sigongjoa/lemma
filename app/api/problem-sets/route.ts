@@ -3,6 +3,7 @@ export const runtime = 'edge'
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/auth'
 import { query, queryOne, execute } from '@/lib/db'
+import { parseJsonArray } from '@/lib/utils'
 
 export async function GET() {
   const session = await auth()
@@ -16,7 +17,7 @@ export async function GET() {
 
   const problemSets = rows.map(ps => ({
     ...ps,
-    problem_ids: JSON.parse(ps.problem_ids ?? '[]'),
+    problem_ids: parseJsonArray(ps.problem_ids),
   }))
 
   return NextResponse.json(problemSets)
@@ -46,5 +47,5 @@ export async function POST(req: NextRequest) {
 
   if (!problemSet) return NextResponse.json({ error: 'Insert failed' }, { status: 500 })
 
-  return NextResponse.json({ ...problemSet, problem_ids: JSON.parse(problemSet.problem_ids ?? '[]') }, { status: 201 })
+  return NextResponse.json({ ...problemSet, problem_ids: parseJsonArray(problemSet.problem_ids) }, { status: 201 })
 }

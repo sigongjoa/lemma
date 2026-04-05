@@ -28,7 +28,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Assignment not found' }, { status: 404 })
   }
 
-  const studentIds: string[] = JSON.parse(assignment.student_ids ?? '[]')
+  const { parseJsonArray } = await import('@/lib/utils')
+  const studentIds = parseJsonArray(assignment.student_ids)
   if (!studentIds.includes(session.user.id)) {
     return NextResponse.json({ error: 'Assignment not found' }, { status: 404 })
   }
@@ -79,12 +80,17 @@ export async function POST(req: NextRequest) {
   }
 
   // Trigger AI grading asynchronously (fire and forget)
-  const baseUrl = process.env.NEXTAUTH_URL ?? `https://${req.headers.get('host')}`
-  fetch(`${baseUrl}/api/ai/grade`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-internal-key': process.env.INTERNAL_GRADE_KEY! },
-    body: JSON.stringify({ submissionId }),
-  }).catch(console.error)
+  const gradeKey = process.env.INTERNAL_GRADE_KEY
+  if (!gradeKey) {
+    console.error('[submissions] INTERNAL_GRADE_KEY not set — grading skipped')
+  } else {
+    const baseUrl = process.env.NEXTAUTH_URL ?? `https://${req.headers.get('host')}`
+    fetch(`${baseUrl}/api/ai/grade`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-internal-key': gradeKey },
+      body: JSON.stringify({ submissionId }),
+    }).catch((err) => console.error('[submissions] Failed to trigger grading:', err))
+  }
 
   return NextResponse.json({ submissionId, status: 'processing' }, { status: 201 })
 }
