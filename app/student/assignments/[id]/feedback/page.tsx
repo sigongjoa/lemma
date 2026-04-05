@@ -157,15 +157,15 @@ export default function FeedbackPage() {
           <button
             onClick={() => router.push(isTeacher ? '/teacher/assignments' : '/student')}
             className="text-xs px-3 py-1.5 rounded-lg"
-            style={{ border: '1px solid oklch(35% 0.02 265)', color: 'oklch(65% 0.01 265)' }}
+            style={{ border: '1px solid oklch(40% 0.02 265)', color: 'var(--lemma-cream-2)' }}
           >
             ← {isTeacher ? '숙제 목록' : '홈'}
           </button>
-          <span className="text-xs" style={{ color: 'oklch(60% 0.01 265)' }}>채점 완료</span>
+          <span className="text-xs" style={{ color: 'var(--lemma-ink-3)' }}>채점 완료</span>
         </div>
 
         {assignmentTitle && (
-          <p className="text-sm font-semibold mb-4" style={{ color: 'oklch(75% 0.01 265)' }}>
+          <p className="text-sm font-semibold mb-4" style={{ color: 'var(--lemma-cream-2)' }}>
             {assignmentTitle}
           </p>
         )}
@@ -176,18 +176,18 @@ export default function FeedbackPage() {
             <span className="text-2xl font-bold leading-none" style={{ color: 'var(--lemma-gold)' }}>
               {data.total_score}
             </span>
-            <span className="text-xs" style={{ color: 'oklch(55% 0.01 265)' }}>/ {totalProblems}점</span>
+            <span className="text-xs" style={{ color: 'var(--lemma-ink-3)' }}>/ {totalProblems}점</span>
           </div>
           <div className="flex-1">
-            <div className="flex justify-between text-xs mb-1" style={{ color: 'oklch(60% 0.01 265)' }}>
+            <div className="flex justify-between text-xs mb-1" style={{ color: 'var(--lemma-cream-2)' }}>
               <span>정답률</span><span>{pct}%</span>
             </div>
             <div className="h-1.5 rounded-full" style={{ background: 'oklch(30% 0.02 265)' }}>
               <div className="h-full rounded-full" style={{ width: `${pct}%`, background: 'var(--lemma-gold)' }} />
             </div>
             <div className="flex gap-4 mt-3 text-xs">
-              <span style={{ color: 'oklch(65% 0.14 155)' }}>● 맞음 {correct}</span>
-              <span style={{ color: 'oklch(65% 0.14 25)' }}>● 틀림 {wrong}</span>
+              <span style={{ color: 'var(--lemma-green)' }}>● 맞음 {correct}</span>
+              <span style={{ color: 'oklch(75% 0.14 25)' }}>● 틀림 {wrong}</span>
             </div>
           </div>
         </div>
