@@ -40,6 +40,10 @@ export async function GET(
     is_correct: number
     student_answer: string | null
     ai_feedback: string | null
+    teacher_comment: string | null
+    retry_status: string | null
+    retry_is_correct: number | null
+    retry_ai_feedback: string | null
     similar_problem_id: string | null
     problem_title: string | null
     problem_body: string | null
@@ -49,7 +53,9 @@ export async function GET(
     [key: string]: unknown
   }>(
     `SELECT
-       sr.id, sr.problem_id, sr.is_correct, sr.student_answer, sr.ai_feedback, sr.similar_problem_id,
+       sr.id, sr.problem_id, sr.is_correct, sr.student_answer, sr.ai_feedback,
+       sr.teacher_comment, sr.retry_status, sr.retry_is_correct, sr.retry_ai_feedback,
+       sr.similar_problem_id,
        p.title AS problem_title,
        p.body AS problem_body,
        p.concept_tags AS problem_concept_tags,
@@ -68,6 +74,10 @@ export async function GET(
     is_correct: Boolean(r.is_correct),
     student_answer: r.student_answer,
     ai_feedback: r.ai_feedback,
+    teacher_comment: r.teacher_comment,
+    retry_status: r.retry_status,
+    retry_is_correct: r.retry_is_correct,
+    retry_ai_feedback: r.retry_ai_feedback,
     problem: r.problem_id ? {
       title: r.problem_title,
       body: r.problem_body,

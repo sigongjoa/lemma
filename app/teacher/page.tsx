@@ -2,6 +2,7 @@ export const runtime = 'edge'
 
 import { auth } from '@/auth'
 import { query, queryOne } from '@/lib/db'
+import { parseJsonArray } from '@/lib/utils'
 import Link from 'next/link'
 
 async function getDashboardData() {
@@ -21,7 +22,7 @@ async function getDashboardData() {
 
   const recentAssignments = recentAssignmentsRaw.map((a) => ({
     ...a,
-    student_ids: JSON.parse(a.student_ids ?? '[]') as string[],
+    student_ids: parseJsonArray(a.student_ids),
   }))
 
   // Submissions today
@@ -48,7 +49,22 @@ async function getDashboardData() {
 
 export default async function TeacherDashboardPage() {
   const session = await auth()
-  const data = await getDashboardData()
+
+  // Fetch dashboard data + unsubmitted alerts in parallel
+  const now = new Date()
+  const cutoff = new Date(now.getTime() + 48 * 60 * 60 * 1000).toISOString()
+
+  const [data, urgentAssignmentsRaw, allSubmissions] = await Promise.all([
+    getDashboardData(),
+    query<{ id: string; title: string; due_date: string; student_ids: string }>(
+      `SELECT id, title, due_date, student_ids FROM assignments WHERE due_date >= ? AND due_date <= ? ORDER BY due_date ASC`,
+      [now.toISOString(), cutoff]
+    ),
+    query<{ assignment_id: string; student_id: string }>(
+      `SELECT assignment_id, student_id FROM submissions WHERE assignment_id IN (SELECT id FROM assignments WHERE due_date >= ? AND due_date <= ?)`,
+      [now.toISOString(), cutoff]
+    ),
+  ])
 
   const today = new Date()
   const dueTodayAssignments = data.recentAssignments.filter(
@@ -57,6 +73,23 @@ export default async function TeacherDashboardPage() {
       return due.toDateString() === today.toDateString()
     }
   )
+
+  // Build unsubmitted alerts
+  const submittedSet = new Set(allSubmissions.map(s => `${s.assignment_id}:${s.student_id}`))
+
+  // Get student names for unsubmitted
+  const allStudentIds = [...new Set(urgentAssignmentsRaw.flatMap(a => parseJsonArray(a.student_ids)))]
+  const studentNames = allStudentIds.length > 0
+    ? await query<{ id: string; name: string }>(`SELECT id, name FROM users WHERE id IN (${allStudentIds.map(() => '?').join(',')})`, allStudentIds)
+    : []
+  const nameMap = new Map(studentNames.map(s => [s.id, s.name]))
+
+  const unsubmittedAlerts = urgentAssignmentsRaw.map(a => {
+    const enrolled = parseJsonArray(a.student_ids)
+    const missing = enrolled.filter(id => !submittedSet.has(`${a.id}:${id}`)).map(id => nameMap.get(id) ?? '?')
+    const hoursLeft = Math.round((new Date(a.due_date).getTime() - now.getTime()) / 3600000)
+    return { id: a.id, title: a.title, missing, hoursLeft }
+  }).filter(a => a.missing.length > 0)
 
   return (
     <div>
@@ -99,6 +132,41 @@ export default async function TeacherDashboardPage() {
             </div>
           ))}
         </div>
+
+        {/* 미제출 알림 */}
+        {unsubmittedAlerts.length > 0 && (
+          <div className="rounded-2xl border overflow-hidden" style={{ background: 'white', borderColor: 'var(--lemma-red)', borderLeftWidth: '4px' }}>
+            <div className="px-5 py-4 border-b flex items-center gap-2" style={{ borderColor: 'var(--lemma-cream-2)' }}>
+              <span style={{ color: 'var(--lemma-red)' }}>⚠</span>
+              <h2 className="text-sm font-bold" style={{ color: 'var(--lemma-red)' }}>마감 임박 — 미제출 학생</h2>
+            </div>
+            <div className="divide-y" style={{ borderColor: 'var(--lemma-cream-2)' }}>
+              {unsubmittedAlerts.map(alert => (
+                <div key={alert.id} className="px-5 py-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <Link href={`/teacher/assignments/${alert.id}`}
+                        className="text-sm font-semibold hover:underline" style={{ color: 'var(--lemma-ink)' }}>
+                        {alert.title}
+                      </Link>
+                      <p className="text-xs mt-0.5" style={{ color: alert.hoursLeft <= 12 ? 'var(--lemma-red)' : 'oklch(45% 0.12 75)' }}>
+                        {alert.hoursLeft <= 0 ? '마감됨' : `${alert.hoursLeft}시간 후 마감`}
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap gap-1 justify-end">
+                      {alert.missing.map(name => (
+                        <span key={name} className="text-xs px-2 py-0.5 rounded-full font-semibold"
+                          style={{ background: 'oklch(95% 0.06 25)', color: 'var(--lemma-red)' }}>
+                          {name}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Recent assignments */}
         <div className="rounded-2xl border overflow-hidden" style={{ background: 'white', borderColor: 'var(--lemma-cream-2)' }}>

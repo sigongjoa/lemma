@@ -2,6 +2,7 @@ export const runtime = 'edge'
 
 import { auth } from '@/auth'
 import { query, queryOne } from '@/lib/db'
+import { parseJsonArray } from '@/lib/utils'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 
@@ -31,28 +32,41 @@ async function getStudentDetail(id: string) {
 
   const submissionIds = submissions.map(s => s.id)
   const results = submissionIds.length > 0
-    ? await query<{ submission_id: string; is_correct: number; concept_tags: string }>(
-        `SELECT sr.submission_id, sr.is_correct, p.concept_tags
+    ? await query<{ submission_id: string; is_correct: number; concept_tags: string; submitted_at: string }>(
+        `SELECT sr.submission_id, sr.is_correct, p.concept_tags, s.submitted_at
          FROM submission_results sr
          LEFT JOIN problems p ON p.id = sr.problem_id
-         WHERE sr.submission_id IN (${submissionIds.map(() => '?').join(',')})`,
+         LEFT JOIN submissions s ON s.id = sr.submission_id
+         WHERE sr.submission_id IN (${submissionIds.map(() => '?').join(',')})
+         ORDER BY s.submitted_at ASC`,
         submissionIds
       )
     : []
 
-  // Concept stats
-  const conceptMap: Record<string, { correct: number; total: number }> = {}
+  // Concept stats + streak computation
+  const conceptMap: Record<string, { correct: number; total: number; history: boolean[] }> = {}
   for (const r of results) {
-    const tags: string[] = JSON.parse(r.concept_tags ?? '[]')
+    const tags = parseJsonArray(r.concept_tags)
     for (const tag of tags) {
-      if (!conceptMap[tag]) conceptMap[tag] = { correct: 0, total: 0 }
+      if (!conceptMap[tag]) conceptMap[tag] = { correct: 0, total: 0, history: [] }
       conceptMap[tag].total++
+      conceptMap[tag].history.push(Boolean(r.is_correct))
       if (r.is_correct) conceptMap[tag].correct++
     }
   }
 
   const conceptStats = Object.entries(conceptMap)
-    .map(([tag, { correct, total }]) => ({ tag, correct, total, rate: Math.round((correct / total) * 100) }))
+    .map(([tag, { correct, total, history }]) => {
+      // Compute current consecutive wrong streak from the end
+      let streak = 0
+      for (let i = history.length - 1; i >= 0; i--) {
+        if (!history[i]) streak++
+        else break
+      }
+      const rate = Math.round((correct / total) * 100)
+      const severity = streak >= 3 ? 'critical' : streak >= 2 ? 'concern' : streak >= 1 ? 'watch' : 'ok'
+      return { tag, correct, total, rate, streak, severity }
+    })
     .sort((a, b) => a.rate - b.rate)
 
   const scores = submissions.map(s => s.total_score).filter((v): v is number => v != null)
@@ -89,8 +103,6 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
     ? `M ${points[0].x} ${padding.t + innerH} L ${points.map(p => `${p.x},${p.y}`).join(' L ')} L ${points[points.length - 1].x} ${padding.t + innerH} Z`
     : ''
 
-  const weakConcepts = conceptStats.filter(c => c.rate < 60)
-  const strongConcepts = conceptStats.filter(c => c.rate >= 80)
 
   return (
     <div>
@@ -175,7 +187,7 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
               <div className="h-24 flex items-center justify-center text-sm" style={{ color: 'var(--lemma-ink-3)' }}>데이터 없음</div>
             ) : (
               <div className="space-y-3">
-                {conceptStats.map(({ tag, rate }) => (
+                {conceptStats.map(({ tag, rate, streak, severity }) => (
                   <div key={tag} className="flex items-center gap-3">
                     <span className="text-xs w-20 flex-shrink-0 truncate" style={{ color: 'var(--lemma-ink-2)' }}>{tag}</span>
                     <div className="flex-1 h-2 rounded-full" style={{ background: 'var(--lemma-cream-2)' }}>
@@ -187,16 +199,29 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
                     <span className="text-xs font-bold w-8 text-right flex-shrink-0" style={{
                       color: rate >= 80 ? 'var(--lemma-green)' : rate >= 60 ? 'var(--lemma-gold-d)' : 'var(--lemma-red)',
                     }}>{rate}%</span>
+                    {streak >= 2 && (
+                      <span className="text-xs font-bold px-1.5 py-0.5 rounded flex-shrink-0" style={{
+                        background: severity === 'critical' ? 'oklch(95% 0.06 25)' : 'oklch(95% 0.04 75)',
+                        color: severity === 'critical' ? 'var(--lemma-red)' : 'oklch(45% 0.12 75)',
+                      }}>
+                        {streak}연속
+                      </span>
+                    )}
                   </div>
                 ))}
               </div>
             )}
-            {weakConcepts.length > 0 && (
+            {conceptStats.filter(c => c.severity === 'critical' || c.severity === 'concern').length > 0 && (
               <div className="mt-4 p-3 rounded-xl" style={{ background: 'oklch(95% 0.06 25)', borderLeft: '3px solid var(--lemma-red)' }}>
-                <p className="text-xs font-bold" style={{ color: 'var(--lemma-red)' }}>⚠ 취약 개념</p>
-                <p className="text-xs mt-1" style={{ color: 'var(--lemma-ink-2)' }}>
-                  {weakConcepts.map(c => c.tag).join(' · ')}
-                </p>
+                <p className="text-xs font-bold" style={{ color: 'var(--lemma-red)' }}>⚠ 반복 오답 패턴</p>
+                <div className="flex flex-wrap gap-2 mt-1">
+                  {conceptStats.filter(c => c.severity === 'critical' || c.severity === 'concern').map(c => (
+                    <span key={c.tag} className="text-xs px-2 py-0.5 rounded-full font-semibold"
+                      style={{ background: c.severity === 'critical' ? 'oklch(88% 0.1 25)' : 'oklch(93% 0.06 25)', color: 'var(--lemma-red)' }}>
+                      {c.tag} {c.streak}연속
+                    </span>
+                  ))}
+                </div>
               </div>
             )}
           </div>

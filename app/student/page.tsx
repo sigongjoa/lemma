@@ -5,6 +5,7 @@ import { query } from '@/lib/db'
 import { Assignment, Submission } from '@/types'
 import Link from 'next/link'
 import { parseJsonArray } from '@/lib/utils'
+import { ScoreSparkline } from '@/components/ui/ScoreSparkline'
 
 interface AssignmentRow extends Assignment {
   ps_problem_ids: string | null
@@ -92,6 +93,15 @@ export default async function StudentHomePage() {
   const feedbackCount = assignments.filter((a) => a.my_submission?.status === 'done').length
   const doneCount = assignments.filter((a) => a.my_submission?.status === 'done').length
 
+  // Last 5 scores for sparkline
+  const recentScores = assignments
+    .filter(a => a.my_submission?.status === 'done' && a.my_submission.total_score != null)
+    .sort((a, b) => new Date(a.my_submission!.submitted_at).getTime() - new Date(b.my_submission!.submitted_at).getTime())
+    .slice(-5)
+    .map(a => a.my_submission!.total_score as number)
+
+  const latestScore = recentScores[recentScores.length - 1] ?? null
+
   return (
     <div>
       {/* Header */}
@@ -103,11 +113,18 @@ export default async function StudentHomePage() {
               {session!.user.name}
             </h1>
           </div>
-          <div className="text-right">
-            <p className="text-xs" style={{ color: 'var(--lemma-ink-3)' }}>이번 주 평균</p>
-            <p className="text-2xl font-bold" style={{ color: 'var(--lemma-gold-d)' }}>
-              —
-            </p>
+          <div className="text-right flex flex-col items-end gap-1">
+            <p className="text-xs" style={{ color: 'var(--lemma-ink-3)' }}>최근 점수</p>
+            {latestScore != null ? (
+              <>
+                <p className="text-2xl font-bold leading-none" style={{ color: 'var(--lemma-gold-d)' }}>
+                  {latestScore}점
+                </p>
+                {recentScores.length >= 2 && <ScoreSparkline scores={recentScores} />}
+              </>
+            ) : (
+              <p className="text-2xl font-bold" style={{ color: 'var(--lemma-ink-3)' }}>—</p>
+            )}
           </div>
         </div>
 

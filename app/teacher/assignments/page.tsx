@@ -55,7 +55,9 @@ export default async function AssignmentsPage() {
                 const isOverdue = new Date(a.due_date) < new Date()
                 return (
                   <tr key={a.id} className="hover:bg-stone-50" style={{ borderBottom: '1px solid oklch(95% 0.005 90)' }}>
-                    <td className="px-5 py-3 text-sm font-semibold" style={{ color: 'var(--lemma-ink)' }}>{a.title}</td>
+                    <td className="px-5 py-3 text-sm font-semibold" style={{ color: 'var(--lemma-ink)' }}>
+                      <Link href={`/teacher/assignments/${a.id}`} className="hover:underline">{a.title}</Link>
+                    </td>
                     <td className="px-5 py-3 text-sm" style={{ color: 'var(--lemma-ink-2)' }}>{a.problem_set?.name}</td>
                     <td className="px-5 py-3 text-sm" style={{ color: isOverdue ? 'var(--lemma-red)' : 'var(--lemma-ink-2)' }}>
                       {new Date(a.due_date).toLocaleDateString('ko-KR')}
